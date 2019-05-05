@@ -1,0 +1,29 @@
+<html>
+    <head>
+        <title> WebGL 1.0 Demo </title>
+        <meta charset="utf-8">
+    </head>
+
+    <body>
+        <canvas id="glCanvas" width = "640" height = "480"></canvas>
+    </body>
+
+    <script>
+        main();
+
+        function main()
+        {
+            const canvas = document.querySelector("#glCanvas");
+
+            const gl = canvas.getContext("webgl");
+            if(gl == null)
+            {
+                alert("Unable to initialize webgl, your browser may not support webgl.")
+                return;
+            }
+
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+        }
+    </script>
+</html>
