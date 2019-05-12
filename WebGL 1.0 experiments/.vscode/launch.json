@@ -23,7 +23,7 @@
             "type":"chrome",
             "request":"launch",
             "name": "Launch against live server",
-            "url":"http://127.0.0.1:5500/2.ApplyingColorToTheVertices/index.html",
+            "url":"http://127.0.0.1:5500/InputAndMouseCapture/index.html",
             "webRoot": "${workspaceFolder}"
         }
     ]
