@@ -24,7 +24,8 @@
             "request":"launch",
             "name": "Launch against live server",
             //"url":"http://127.0.0.1:5500/InputAndMouseCapture/index.html",
-            "url":"http://127.0.0.1:5500/FullscreenTests/index.html",
+            // "url":"http://127.0.0.1:5500/FullscreenTests/index.html",
+            "url":"http://127.0.0.1:5500/BitmapFontRendering/index.html",
             "webRoot": "${workspaceFolder}"
         }
     ]
