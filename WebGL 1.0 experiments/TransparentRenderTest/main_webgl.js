@@ -1,8 +1,9 @@
-// import {bitmap_font_foo} from '../shared_resources/bitmap_font.js'
-// import * as BMF from 'bitmap_font.js'
+import {vec3} from '../shared_resources/gl-matrix_esm/index.js';
+import {mat4} from '../shared_resources/gl-matrix_esm/index.js';
+import {quat} from '../shared_resources/gl-matrix_esm/index.js';
 
 main();
-cubeRotationRadians = 0;
+// var cubeRotationRadians = 0;
 
 function loadShader(gl, glShaderType, srcStr)
 {
@@ -278,15 +279,15 @@ const up = vec3.fromValues(0,1,0);
 
 var cameraSpeed = 10;
 
-function drawFont(gl, shaderStruct, buffers, texture, deltatime)
+function drawFont(gl, shaderStruct, buffers, texture, /*deltatime*/)
 {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
 
-    const width = 892;
-    const height = 320;
-    const imgAspect = width / height;
+    // const width = 892;
+    // const height = 320;
+    //let imgAspect = width / height;
 
     // ------------------------- PREPARE SHADER -------------------------
     //this is all in NDC [-1, 1]
@@ -331,8 +332,7 @@ function drawFont(gl, shaderStruct, buffers, texture, deltatime)
 function drawScene(gl, shaderStruct, buffers, texture, deltatime)
 {
     //UPDATE
-
-    camVecs = calcCamBasisVec();
+    var camVecs = calcCamBasisVec();
     const moveVec = vec3.fromValues(0,0,0);
     if(up_pressed) { 
         vec3.add(moveVec, moveVec, camVecs.forward); //needs to update to a front vec
@@ -373,7 +373,7 @@ function drawScene(gl, shaderStruct, buffers, texture, deltatime)
     mat4.perspective(projectionMatrix, FOV, aspect, zNear, zFar);
 
     //move square to infer this libraries matrix concatenation ordering
-    cubeRotationRadians += deltatime;
+    // cubeRotationRadians += deltatime;
     const view = mat4.create();
     const model = mat4.create();
     mat4.translate(/*outvar*/model, /*mat to translate*/ model, [0.0, 0.0, -6.0]);
@@ -490,18 +490,18 @@ function handleMouseMoved(e)
 
     if(pointerLocked)
     {
-        camVecs = calcCamBasisVec();
+        let camVecs = calcCamBasisVec();
         
         //fps camera, for free quat camera we can cache the up each frame after calculating bases again
         const yawAxis = camVecs.up;
         const pitchAxis = camVecs.right;
     
-        qYaw = quat.create();
-        qPitch = quat.create();
+        var qYaw = quat.create();
+        var qPitch = quat.create();
     
         //adhoc fractions -- this could actually just use pixels with some scalar to control speed
-        fractionX = movX / glCanvas.clientWidth;
-        fractionY = movY / glCanvas.clientHeight;
+        var fractionX = movX / glCanvas.clientWidth;
+        var fractionY = movY / glCanvas.clientHeight;
     
         quat.setAxisAngle(qYaw, yawAxis, fractionX);
         quat.setAxisAngle(qPitch, pitchAxis, -fractionY);
@@ -514,9 +514,9 @@ function handleMouseMoved(e)
 
 }
 
- function handlePointerLockError(e) 
+ function handlePointerLockError(/*e*/) 
  {
-
+    
  }
 
  
@@ -668,7 +668,7 @@ function main()
         }
     `;
    const quadShader = initShaderProgram(gl, quadVertSrc, quadFragSrc);
-   quadShaderStruct = {
+   var quadShaderStruct = {
        program : quadShader,
        attribLocations : {
             pos : gl.getAttribLocation(quadShader, "vertPos"),
@@ -685,11 +685,11 @@ function main()
     const buffers = initBuffers(gl);
     const cubeTexture = loadTexture(gl, "../shared_resources/Grass2.png");
     const montserratTexture = loadTexture(gl, "../shared_resources/Montserrat_ss_alpha_white.png");
-    const montserratBlackTexture = loadTexture(gl, "../shared_resources/Montserrat_ss_alpha_black.png");
+    // const montserratBlackTexture = loadTexture(gl, "../shared_resources/Montserrat_ss_alpha_black.png");
 
     //event bubbling means start events at bottom element and move up
     //event capturing means start events at top level and move down
-    useCapture = false; //false means use event bubbling
+    var useCapture = false; //false means use event bubbling
     document.addEventListener('keydown', handleKeyDown, useCapture);
     document.addEventListener('keyup', handleKeyUp, useCapture);
     document.addEventListener('mousemove', handleMouseMoved);
@@ -712,7 +712,7 @@ function main()
     var prevSec = 0
     function renderLoopCallback(nowMS)
     {
-        nowSec = nowMS * 0.001;
+        var nowSec = nowMS * 0.001;
         const deltatime = nowSec - prevSec;
         drawScene(gl, shaderStruct, buffers, cubeTexture, deltatime); //seems wasteful to keep re-configuring vertext attrib, but this is a tutorial
         drawFont(gl, quadShaderStruct, buffers, montserratTexture, deltatime);
