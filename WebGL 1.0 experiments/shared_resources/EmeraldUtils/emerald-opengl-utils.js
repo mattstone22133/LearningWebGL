@@ -133,24 +133,31 @@ export const unitCubeIndices = [
 ];
 
 export const quad2DPositions = [
-    -1.0,-1.0,    1.0,-1.0,    1.0,1.0, //triangle 1
-    -1.0,-1.0,    1.0,1.0,    -1.0,1.0, //triangle 2
+    -0.5,-0.5,    0.5,-0.5,    0.5,0.5, //triangle 1
+    -0.5,-0.5,    0.5,0.5,    -0.5,0.5, //triangle 2
 ];
 
 export const quad3DPositions = [
-    -1.0,-1.0,0.0,    1.0,-1.0,0.0,    1.0,1.0,0.0, //triangle 1
-    -1.0,-1.0,0.0,    1.0,1.0,0.0,    -1.0,1.0,0.0, //triangle 2
+    -0.5,-0.5,0.0,    0.5,-0.5,0.0,    0.5,0.5,0.0, //triangle 1
+    -0.5,-0.5,0.0,    0.5,0.5,0.0,    -0.5,0.5,0.0, //triangle 2
 ];
 
-export const quad3DNormalsd = [
+export const quad3DPositions_pivotBottomLeft = [
+    0.0,0.0,0.0,    1.0,0.0,0.0,    1.0,1.0,0.0, //triangle 1
+    0.0,0.0,0.0,    1.0,1.0,0.0,    0.0,1.0,0.0, //triangle 2
+];
+
+export const quad3DNormals = [
     0.0,0.0,1.0,    0.0,0.0,1.0,    0.0,0.0,1.0, //triangle 1
     0.0,0.0,1.0,    0.0,0.0,1.0,    0.0,0.0,1.0, //triangle 2
 ];
 
-export const quadUVs = [
+export const quadFlippedUVs = [
     0.0,1.0,    1.0,1.0,    1.0,0.0, //triangle 1
     0.0,1.0,    1.0,0.0,    0.0,0.0, //triangle 2
 ];
+
+quad3DPositions_pivotBottomLeft
 
 /////////////////////////////////////////////////
 // Shader Utils
@@ -189,7 +196,120 @@ export function initShaderProgram(gl, vertSrc, fragSrc)
     return shaderProg;
 }
 
-////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+// Rendering Line Utils
+///////////////////////////////////////////////////////
+
+//for use with a shear shader that sets up where the first (x axis) and second (y axis) should land; see shader below
+export const linePointPositions = 
+[
+    1.0, 0.0, 0.0, //x-axis to transform with shear; this is the start point in the line
+    0.0, 1.0, 0.0  //y-axis to transform with shear; this is the end point in the line.
+];
+
+
+
+const simpleLineShader_vs = 
+`
+    attribute vec3 position;
+
+    uniform mat4 model; //the shear matrix
+    uniform mat4 view;
+    uniform mat4 projection;
+
+    //shear matrix has useful property, each column is where the cooresponding base
+    //vector will land. So, if we draw a line from points [1,0,0] and [0,1,0], then
+    //we can abuse the shear matrix to specify where we want those points to land.
+    // we just specify the matrix with columns where we want the points to land!
+    // | firstX secondX 0 0 |
+    // | firstY secondY 0 0 |
+    // | firstZ secondZ 1 0 |
+    // | 0       0      0 1 |
+    void main(){
+        gl_Position = projection * view * model * vec4(position, 1);
+    }
+`;
+const simpleLineShader_fs = 
+`
+    uniform highp vec3 color;
+
+    void main(){
+        gl_FragColor = vec4(color, 1);
+    }
+`;
+
+
+export function createShearMatrixForPoints(pntA, pntB)
+{
+    return mat4.fromValues(
+        pntA[0], pntA[1], pntA[2], 0, //col 1; transforms x-axis
+        pntB[0], pntB[1], pntB[2], 0, //col 2; transforms y-axis
+        0,          0,      1,     0, //col 3; transforms z-axis
+        0,          0,      0,     1  //col 4
+    );
+}
+
+/** This is somewhat-like immediate mod; which means it isn't the best way to render lines. The alternative
+ *  way for rendering lines is to load the points you want up into a buffer, then draw that array buffer as lines
+ *  This method uses a shear matrix trick to map the x-axis and y-axis basis vectors to the points provided and setting
+ *  that matrix via a uniform. Thus, this really should be a debug tool or used sparingly because it will use a lot of draw
+ *  calls to render simple line segements.
+ */
+export class LineRenderer
+{
+    constructor(gl)
+    {
+        if(!gl) { console.log("FAILURE: cannot create LineRender, gl is null"); return;}
+
+        this.gl = gl;
+        this.shader = this._generateShader(gl);
+        this.lineVBO = this._generateBuffer(gl);
+    }
+
+    renderLine(pntA, pntB, color, view_mat, projection_mat)
+    {
+        let gl = this.gl;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.lineVBO);
+        gl.vertexAttribPointer(this.shader.attribs.pos, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(this.shader.attribs.pos);
+
+        let shearMat = createShearMatrixForPoints(pntA, pntB);
+
+        gl.useProgram(this.shader.program);
+        gl.uniformMatrix4fv(this.shader.uniforms.model, false, shearMat);
+        gl.uniformMatrix4fv(this.shader.uniforms.view, false, view_mat);
+        gl.uniformMatrix4fv(this.shader.uniforms.projection, false, projection_mat);
+        gl.uniform3f(this.shader.uniforms.color, color[0], color[1], color[2]);
+
+        gl.drawArrays(gl.LINES, 0, 2);
+    }
+
+    _generateShader(gl)
+    {
+        let glProgram = initShaderProgram(gl, simpleLineShader_vs, simpleLineShader_fs);
+        return { 
+            program : glProgram,
+            attribs : {
+                pos: gl.getAttribLocation(glProgram, "position"),
+            },
+            uniforms : {
+                model : gl.getUniformLocation(glProgram, "model"),
+                view  : gl.getUniformLocation(glProgram, "view"),
+                projection : gl.getUniformLocation(glProgram, "projection"),
+                color : gl.getUniformLocation(glProgram, "color"),
+            }
+        }
+    }
+    _generateBuffer(gl)
+    {
+        const axisPosVbo = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, axisPosVbo);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(linePointPositions), gl.STATIC_DRAW);
+        return axisPosVbo
+    }
+}
+
+///////////////////////////////////////////////////////
 // Texture Utils
 ///////////////////////////////////////////////////////
 
@@ -294,6 +414,13 @@ export class Texture
         return image;
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Shaders
+/////////////////////////////////////////////////////////////////////////////////
+
+
+
 
 /////////////////////////////////////////////////////////////////////////////////
 // Browser Utils
