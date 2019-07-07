@@ -1,9 +1,10 @@
 import * as EmeraldUtils from "../shared_resources/EmeraldUtils/emerald-opengl-utils.js"
 import * as key from "../shared_resources/EmeraldUtils/browser_key_codes.js"
 import {Camera} from "../shared_resources/EmeraldUtils/emerald-opengl-utils.js"
-import {vec2, vec3, mat4} from "../shared_resources/gl-matrix_esm/index.js"
+import {vec2, vec3, vec4, mat4} from "../shared_resources/gl-matrix_esm/index.js"
 import {RenderBox3D, GlyphRenderer} from "../shared_resources/EmeraldUtils/BitmapFontRendering.js"
 import * as BMF from "../shared_resources/EmeraldUtils/BitmapFontRendering.js"
+import { Montserrat_BMF } from "../shared_resources/EmeraldUtils/Montserrat_BitmapFontConfig.js";
 
 
 
@@ -134,16 +135,18 @@ class Game
         ////////////////////////////////////////////////////////////////////
         //below this are things that are specific to this module and shouldn't be factored into a generic Game class
         this.lineRenderer = new EmeraldUtils.LineRenderer(this.gl);
-        // this.focusedRenderBox = new RenderBox3D(vec3.fromValues(0.0, 0.8, 0), 0.1, 0.1);
-        this.focusedRenderBox = new RenderBox3D(vec3.fromValues(0.0, 0.0, 0), 1.0, 1.0);
+        this.focusedRenderBox = new RenderBox3D(vec3.fromValues(0.0, 0.8, 0), 0.1, 0.1);
+        // this.focusedRenderBox = new RenderBox3D(vec3.fromValues(0.0, 0.0, 0), 1.0, 1.0);
         this.testGlyphRenderer = new GlyphRenderer(this.gl, 
             BMF.createGlyphShader(this.gl),
             // this.textures.grass.glTextureId,
-            this.textures.montserratFontWhite.glTextureId,
+            this.textures.montserratFont,
             vec2.fromValues(0.0, 0.8), 0.1, 0.1
             // vec2.fromValues(0.0, 0.0), 1.0, 1.0
             );
         
+        this.bitmapFont = new Montserrat_BMF(this.gl, "../shared_resources/Textures/Fonts/Montserrat_ss_alpha_1024x1024_wb.png");
+        // this.testGlyphRenderer = this.bitmapFont.getGlyphFor("a");
         // end this module specific code
         ////////////////////////////////////////////////////////////////////
 
@@ -220,6 +223,7 @@ class Game
             grass : new EmeraldUtils.Texture(gl, "../shared_resources/Grass2.png"),
             montserratFontWhite : new EmeraldUtils.Texture(gl, "../shared_resources/Montserrat_ss_alpha_white_power2.png"),
             montserratFontBlack : new EmeraldUtils.Texture(gl, "../shared_resources/Montserrat_ss_alpha_black_power2.png"),
+            montserratFont : new EmeraldUtils.Texture(gl, "../shared_resources/Textures/Fonts/Montserrat_ss_alpha_1024x1024_wb.png"),
         }
     }
 
@@ -399,6 +403,7 @@ class Game
             }
         }
 
+        let modelMat_text = mat4.create();
         { //render 3d quads
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.quad3D.posVBO);
             gl.vertexAttribPointer(this.shaders.quad3D.attribs.pos, 3, gl.FLOAT, false, 0, 0);
@@ -410,25 +415,23 @@ class Game
     
             gl.useProgram(this.shaders.quad3D.program);
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, this.textures.montserratFontWhite.glTextureId);
+            gl.bindTexture(gl.TEXTURE_2D, this.textures.montserratFont.glTextureId);
             gl.uniform1i(this.shaders.quad3D.uniforms.texSampler, 0/*0 corresponds to gl.TEXTURE0*/);
             gl.uniformMatrix4fv(this.shaders.quad3D.uniforms.projection, false, perspectiveMat);
 
-
             {//render quad 1
 
-                let fontTexture = this.textures.montserratFontWhite;
+                let fontTexture = this.textures.montserratFont;
                 let width = fontTexture.srcImage.width === 0 ? 1 :  fontTexture.srcImage.width;
                 let height = fontTexture.srcImage.height === 0 ? 1 :  fontTexture.srcImage.height; 
                 let aspect = width / height;
 
                 let scale = vec3.fromValues(aspect, 1, 1);
 
-                let modelMat = mat4.create();
-                mat4.translate(modelMat, modelMat, quad3DLoc);
-                mat4.scale(modelMat, modelMat, scale);
+                mat4.translate(modelMat_text, modelMat_text, quad3DLoc);
+                mat4.scale(modelMat_text, modelMat_text, scale);
                 
-                let view_model = mat4.multiply(mat4.create(), viewMat, modelMat)
+                let view_model = mat4.multiply(mat4.create(), viewMat, modelMat_text)
                 gl.uniformMatrix4fv(this.shaders.quad3D.uniforms.view_model, false, view_model);
                 
                 gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -446,8 +449,24 @@ class Game
             for(let line of rbLines)
             {
                 //offset renderbox to location of quad
-                line[0] = vec3.add(line[0], line[0], quad3DLoc);
-                line[1] = vec3.add(line[1], line[1], quad3DLoc);
+                // line[0] = vec3.add(line[0], line[0], quad3DLoc);
+                // line[1] = vec3.add(line[1], line[1], quad3DLoc);
+
+                //transform points by the model matrix of the uv quad
+                let pntA = vec4.fromValues(line[0][0], line[0][1], line[0][2], 1);
+                let pntB = vec4.fromValues(line[1][0], line[1][1], line[1][2], 1);
+                
+                vec4.transformMat4(pntA, pntA, modelMat_text);
+                vec4.transformMat4(pntB, pntB, modelMat_text);
+
+                line[0][0] = pntA[0];
+                line[0][1] = pntA[1];
+                line[0][2] = pntA[2];
+
+                line[1][0] = pntB[0];
+                line[1][1] = pntB[1];
+                line[1][2] = pntB[2];
+
                 this.lineRenderer.renderLine( line[0], line[1], color,viewMat, perspectiveMat);
             }
 
@@ -455,7 +474,7 @@ class Game
 
         {//test glyph renderer
             let modelMat = mat4.create();
-            mat4.translate(modelMat, modelMat, vec3.fromValues(0,2,-5));
+            mat4.translate(modelMat, modelMat, vec3.fromValues(0,1.1,-6));
             this.testGlyphRenderer.render(viewMat, perspectiveMat, modelMat);
         }
 

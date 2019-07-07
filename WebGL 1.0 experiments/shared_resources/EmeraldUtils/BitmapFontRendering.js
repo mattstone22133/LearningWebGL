@@ -1,5 +1,6 @@
 import {vec3} from "../gl-matrix_esm/index.js"
-import {initShaderProgram} from "./emerald-opengl-utils.js"
+import {initShaderProgram, Texture} from "./emerald-opengl-utils.js"
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 // shaders
@@ -106,11 +107,20 @@ export class Glyph
 
 export class GlyphRenderer
 {
-    constructor(gl, glyphShader, fontTextureId, uvPos, width, height)
+    /**
+     * 
+     * @param {*} gl 
+     * @param {*} glyphShader 
+     * @param {*} fonTextureObj 
+     * @param {*} uvPos 
+     * @param {*} width 
+     * @param {*} height 
+     */
+    constructor(gl, glyphShader, fonTextureObj, uvPos, width, height)
     {
         this.gl = gl;
         this.glyphShader = glyphShader;
-        this.fontTextureId = fontTextureId;
+        this.fontTextureId = fonTextureObj;
         this.uvPos = uvPos;
         this.width = width;
         this.height = height;
@@ -168,7 +178,7 @@ export class GlyphRenderer
         // //generic matrices
         gl.useProgram(this.glyphShader.program);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.fontTextureId);
+        gl.bindTexture(gl.TEXTURE_2D, this.fontTextureId.glTextureId);
         gl.uniform1i(this.glyphShader.uniforms.texSampler, 0/*0 corresponds to gl.TEXTURE0*/);
 
         gl.uniform1f(this.glyphShader.uniforms.flipV, -1.0);
@@ -190,13 +200,21 @@ export class GlyphInstance
     }
 }
 
+/**
+ * Notes:
+ *  -to make the math easy, font textures are expected to have a size that is a square power of 2; eg 1024 x 1024. Otherwise 
+ *     there will be some stretching that will need to be accounted for.
+ */
+
 export class BitmapFont
 {
-    constructor(gl)
+    constructor(glContext, textureURL)
     {
-        this.gl = gl;
-        this.shader = createGlyphShader(gl);
-
+        this.gl = glContext;
+        this.shader = createGlyphShader(this.gl);
+        this.fontTexture = new Texture(this.gl, textureURL);
+        this.glyphTable = this._createLookupHashTable();
+        this.defaultGlyph = new GlyphRenderer(this.gl, this.shader, this.fontTexture, 0.0, 0.8, 0.1, 0.1); //perhaps should not show anything? Will probably be more useful when debugging to see something
     }
 
     getGlyphShader(){
@@ -210,6 +228,151 @@ export class BitmapFont
 
     getGlyphFor(letter)
     {
+        //TODO this should probably return a glyph instance, rather than the actual GlyphRenderer
+        let glyph = this.glyphTable[letter];
+        if(glyph == null)
+        {
+            return this.defaultGlyph;
+        }
+        return glyph
+    }
+
+    _createLookupHashTable()
+    {
+        //I prefer to create this table upfront with null values, then have subclasses overwrite values.
+        //that way, the structure of what this should look like is defined in the base class
+        return {
+            "a" : null,
+            "b" : null,
+            "c" : null,
+            "d" : null,
+            "e" : null,
+            "f" : null,
+            "h" : null,
+            "g" : null,
+            "i" : null,
+            "j" : null,
+            "k" : null,
+            "l" : null,
+            "m" : null,
+            "n" : null,
+            "o" : null,
+            "p" : null,
+            "q" : null,
+            "r" : null,
+            "s" : null,
+            "t" : null,
+            "u" : null,
+            "v" : null,
+            "w" : null,
+            "x" : null,
+            "y" : null,
+            "z" : null,
+
+            "A" : null,
+            "B" : null,
+            "C" : null,
+            "D" : null,
+            "E" : null,
+            "F" : null,
+            "G" : null,
+            "H" : null,
+            "I" : null,
+            "J" : null,
+            "K" : null,
+            "L" : null,
+            "M" : null,
+            "N" : null,
+            "O" : null,
+            "P" : null,
+            "Q" : null,
+            "R" : null,
+            "S" : null,
+            "T" : null,
+            "U" : null,
+            "V" : null,
+            "W" : null,
+            "X" : null,
+            "Y" : null,
+            "Z" : null,
+
+            //numeric row
+            "0" : null,
+            "1" : null,
+            "2" : null,
+            "3" : null,
+            "4" : null,
+            "5" : null,
+            "6" : null,
+            "7" : null,
+            "8" : null,
+            "9" : null,
+            "-" : null,
+            "=" : null, 
+
+            //numeric row + shift
+            "!" : null,
+            "@" : null,
+            "#" : null,
+            "$" : null,
+            "%" : null,
+            "^" : null,
+            "&" : null,
+            "*" : null,
+            "(" : null,
+            ")" : null,
+            "_" : null,
+            "+" : null,
+            
+            //symbols within keyboard letters
+            ";" : null,
+            ":" : null,
+            "'" : null,
+            "\"" : null,
+            "[" : null,
+            "{" : null,
+            "]" : null,
+            "}" : null,
+            "/" : null,
+            "?" : null,
+            "." : null,
+            ">" : null,
+            "," : null,
+            "<" : null,
+            "\\" : null,
+            "|" : null,
+            "`" : null, //backtick (beside 1)
+            "~" : null,
+
+            //mathematical symbols
+            "÷" : null,
+
+            //symbols
+            "©" : null,
+            "®" : null,
+
+            //accents
+            "D" : null,
+            "D" : null,
+            "D" : null,
+
+            //there exists more accent than these
+            "ç" : null,          
+            "â" : null,
+            "à" : null,
+            "é" : null,              
+            "è" : null,
+            "ê" : null,
+            "ë" : null,
+            "î" : null,
+            "ï" : null,
+            "ô" : null,
+            "û" : null,
+            "ù" : null,
+            "ü" : null,
+            
+        }
+
 
     }
 
