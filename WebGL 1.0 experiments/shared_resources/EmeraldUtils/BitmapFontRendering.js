@@ -120,7 +120,7 @@ export class GlyphRenderer
     {
         this.gl = gl;
         this.glyphShader = glyphShader;
-        this.fontTextureId = fonTextureObj;
+        this.fontTextureObj = fonTextureObj;
         this.uvPos = uvPos;
         this.width = width;
         this.height = height;
@@ -178,7 +178,7 @@ export class GlyphRenderer
         // //generic matrices
         gl.useProgram(this.glyphShader.program);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.fontTextureId.glTextureId);
+        gl.bindTexture(gl.TEXTURE_2D, this.fontTextureObj.glTextureId);
         gl.uniform1i(this.glyphShader.uniforms.texSampler, 0/*0 corresponds to gl.TEXTURE0*/);
 
         gl.uniform1f(this.glyphShader.uniforms.flipV, -1.0);
@@ -213,8 +213,8 @@ export class BitmapFont
         this.gl = glContext;
         this.shader = createGlyphShader(this.gl);
         this.fontTexture = new Texture(this.gl, textureURL);
-        this.glyphTable = this._createLookupHashTable();
-        this.defaultGlyph = new GlyphRenderer(this.gl, this.shader, this.fontTexture, 0.0, 0.8, 0.1, 0.1); //perhaps should not show anything? Will probably be more useful when debugging to see something
+        this.defaultGlyph = new GlyphRenderer(this.gl, this.shader, this.fontTexture, vec3.fromValues(0.0, 0.8), 0.1, 0.1); //perhaps should not show anything? Will probably be more useful when debugging to see something
+        this._glyphTable = this._createLookupHashTable();
     }
 
     getGlyphShader(){
@@ -223,13 +223,14 @@ export class BitmapFont
 
     render(text)
     {
+        //TODO
         let gl = this.gl;
     }
 
     getGlyphFor(letter)
     {
         //TODO this should probably return a glyph instance, rather than the actual GlyphRenderer
-        let glyph = this.glyphTable[letter];
+        let glyph = this._glyphTable[letter];
         if(glyph == null)
         {
             return this.defaultGlyph;
@@ -241,6 +242,7 @@ export class BitmapFont
     {
         //I prefer to create this table upfront with null values, then have subclasses overwrite values.
         //that way, the structure of what this should look like is defined in the base class
+        //NOTE: implementing this as a hashtable like map is probably inherently slower than using an array with index structure (where symbol is index)
         return {
             "a" : null,
             "b" : null,
@@ -352,11 +354,6 @@ export class BitmapFont
             "®" : null,
 
             //accents
-            "D" : null,
-            "D" : null,
-            "D" : null,
-
-            //there exists more accent than these
             "ç" : null,          
             "â" : null,
             "à" : null,
@@ -370,6 +367,7 @@ export class BitmapFont
             "û" : null,
             "ù" : null,
             "ü" : null,
+            //there exists more accent than these
             
         }
 

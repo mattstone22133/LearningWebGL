@@ -732,7 +732,10 @@ export class Camera
                 dir = vec3.add(dir, dir, leftDir);
             }
             vec3.normalize(dir, dir);
-            vec3.scale(dir, dir, this.speed * deltaTimeSec);
+
+            if(this.inputMonitor.pressedStateArray[key.shift]){ vec3.scale(dir, dir, (this.speed / 16) * deltaTimeSec);}
+            else{vec3.scale(dir, dir, this.speed * deltaTimeSec);}
+            
 
             vec3.add(this.position, this.position, dir);
         }

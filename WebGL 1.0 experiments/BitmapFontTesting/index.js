@@ -124,7 +124,8 @@ class Game
         this.prevFrameTimestampSec = 0;
 
         this.inputMonitor = new key.InputMonitor();
-        this.camera = new Camera(vec3.fromValues(1,1,0), vec3.fromValues(0,0,-1));
+        // this.camera = new Camera(vec3.fromValues(1,1,0), vec3.fromValues(0,0,-1));
+        this.camera = new Camera(vec3.fromValues(0.5,1.155,-4), vec3.fromValues(0,0,-1));
 
         this.boundGameLoop = this.gameLoop.bind(this);
 
@@ -137,7 +138,8 @@ class Game
         this.lineRenderer = new EmeraldUtils.LineRenderer(this.gl);
         this.focusedRenderBox = new RenderBox3D(vec3.fromValues(0.0, 0.8, 0), 0.1, 0.1);
         // this.focusedRenderBox = new RenderBox3D(vec3.fromValues(0.0, 0.0, 0), 1.0, 1.0);
-        this.testGlyphRenderer = new GlyphRenderer(this.gl, 
+        this.testGlyphRenderer = new GlyphRenderer(
+            this.gl, 
             BMF.createGlyphShader(this.gl),
             // this.textures.grass.glTextureId,
             this.textures.montserratFont,
@@ -146,7 +148,11 @@ class Game
             );
         
         this.bitmapFont = new Montserrat_BMF(this.gl, "../shared_resources/Textures/Fonts/Montserrat_ss_alpha_1024x1024_wb.png");
-        // this.testGlyphRenderer = this.bitmapFont.getGlyphFor("a");
+        // this.bitmapFont = new Montserrat_BMF(this.gl, "../shared_resources/Grass2.png");
+        this.testGlyphRenderer = this.bitmapFont.getGlyphFor("j");
+        
+        this.testGlyphs = ["a","b","c","d","e","f","h","g","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","0","1","2","3","4","5","6","7","8","9","-","=","!","@","#","$","%","^","&","*","(",")","_","+",";",":","'","\"","[","{","]","}","/","?",".",">",",","<","\\","|","`","~","÷","©","®","ç","â","à","é","è","ê","ë","î","ï","ô","û","ù","ü",];
+
         // end this module specific code
         ////////////////////////////////////////////////////////////////////
 
@@ -444,6 +450,13 @@ class Game
             let color = vec3.fromValues(1,0,0);
             
             // this.lineRenderer.renderLine( start, end, color,viewMat, perspectiveMat);
+
+            //re-configure to current glyph
+            this.focusedRenderBox.pos[0] = this.testGlyphRenderer.uvPos[0];
+            this.focusedRenderBox.pos[1] = this.testGlyphRenderer.uvPos[1];
+            this.focusedRenderBox.width = this.testGlyphRenderer.width;
+            this.focusedRenderBox.height = this.testGlyphRenderer.height;
+            this.focusedRenderBox._calculatePoints();
 
             let rbLines = this.focusedRenderBox.toLines();
             for(let line of rbLines)
