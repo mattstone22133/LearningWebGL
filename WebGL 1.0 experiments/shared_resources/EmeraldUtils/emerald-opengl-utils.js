@@ -52,6 +52,7 @@ export const unitCubePositions = [
     -0.5,  0.5, -0.5,
   ];
 
+
 export const unitCubeNormals = [
     // Front face
      0.0,  0.0,  1.0,
@@ -157,7 +158,44 @@ export const quadFlippedUVs = [
     0.0,1.0,    1.0,0.0,    0.0,0.0, //triangle 2
 ];
 
-quad3DPositions_pivotBottomLeft
+
+export const unitCubePositionsPivot = [
+    // Front face
+     0.0,  0.0,  -1.0,
+     1.0,  0.0,  -1.0,
+     1.0,  -1.0,  -1.0,
+     0.0,  -1.0,  -1.0,
+    
+    // Back face
+     0.0,  0.0,  0.0,
+     0.0,  -1.0,  0.0,
+     1.0,  -1.0,  0.0,
+     1.0,  0.0,  0.0,
+    
+    // Top face
+     0.0,  -1.0,  0.0,
+     0.0,  -1.0,  -1.0,
+     1.0,  -1.0,  -1.0,
+     1.0,  -1.0,  0.0,
+    
+    // Bottom face
+     0.0,  0.0,  0.0,
+     1.0,  0.0,  0.0,
+     1.0,  0.0,  -1.0,
+     0.0,  0.0,  -1.0,
+    
+    // Right face
+     1.0,  0.0,  0.0,
+     1.0,  -1.0,  0.0,
+     1.0,  -1.0,  -1.0,
+     1.0,  0.0,  -1.0,
+    
+    // Left face
+     0.0,  0.0,  0.0,
+     0.0,  0.0,  -1.0,
+     0.0,  -1.0,  -1.0,
+     0.0,  -1.0,  0.0,
+  ];
 
 /////////////////////////////////////////////////
 // Shader Utils
@@ -542,6 +580,28 @@ export function getDifferentVector(out, vec)
 }
 
 
+export class Transform
+{
+    constructor()
+    {
+        this.pos = vec3.fromValues(0,0,0);
+        this.scale = vec3.fromValues(1,1,1);
+        this.rot = quat.create();
+        this.model = mat4.create();
+    }
+
+    toMat4(out)
+    {
+        mat4.identity(this.model);
+        mat4.translate(this.model, this.model, this.pos);
+        mat4.mul(this.model, this.model, mat4.fromQuat(mat4.create(), this.rot));
+        mat4.scale(this.model, this.model, this.scale);
+        
+        mat4.copy(out, this.model);
+        return out;
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Camera
 /////////////////////////////////////////////////////////////////////////////////
@@ -694,6 +754,13 @@ export class Camera
     getPerspective(aspect)
     {
         return mat4.perspective(mat4.create(), this.FOV_degrees, aspect, this.zNear, this.zFar);
+    }
+
+    getOrtho(width, height)
+    {
+        let halfWidth = width / 2.0;
+        let halfHeight = height / 2.0;
+        return mat4.ortho(mat4.create(), -halfWidth, halfWidth, -halfHeight, halfHeight, this.zNear, this.zFar);
     }
 
     getView()

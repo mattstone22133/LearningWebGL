@@ -39,5 +39,13 @@
             "url":"http://127.0.0.1:5500/BitmapFontTesting/index.html",
             "webRoot": "${workspaceFolder}"
         }
+
+        {
+            "type":"chrome",
+            "request":"launch",
+            "name": "Launch MusicTool with against live server",
+            "url":"http://127.0.0.1:5500/MusicTool/index.html",
+            "webRoot": "${workspaceFolder}"
+        }
     ]
 }
