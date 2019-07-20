@@ -47,9 +47,9 @@ export class Montserrat_BMF extends BitmapFont
         this._glyphTable["p"] = new GlyphRenderer(this.gl, this.shader, this.fontTexture, vec3.fromValues(0.3443, 0.921), 0.0175, 0.0235); 
         this._glyphTable["q"] = new GlyphRenderer(this.gl, this.shader, this.fontTexture, vec3.fromValues(0.3667, 0.921), 0.0175, 0.0235); 
         this._glyphTable["r"] = new GlyphRenderer(this.gl, this.shader, this.fontTexture, vec3.fromValues(0.3922, 0.927), 0.010, 0.017); 
-        this._glyphTable["s"] = null;
-        this._glyphTable["t"] = null;
-        this._glyphTable["u"] = null;
+        this._glyphTable["s"] = new GlyphRenderer(this.gl, this.shader, this.fontTexture, vec3.fromValues(0.4058, 0.927), 0.014, 0.017); 
+        this._glyphTable["t"] = new GlyphRenderer(this.gl, this.shader, this.fontTexture, vec3.fromValues(0.442, 0.927), 0.0115, 0.021); 
+        this._glyphTable["u"] = new GlyphRenderer(this.gl, this.shader, this.fontTexture, vec3.fromValues(0.4595, 0.927), 0.016, 0.017); 
         this._glyphTable["v"] = null;
         this._glyphTable["w"] = null;
         this._glyphTable["x"] = null;
