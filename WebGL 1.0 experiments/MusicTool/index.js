@@ -42,11 +42,13 @@ class Game
         
         ///////////////////////////////
         //custom game code
-        this.coloredCube = coloredCubeFactory(this.gl);
+        // this.coloredCube = coloredCubeFactory(this.gl);
         this.camera = new Camera(vec3.fromValues(0,0,1), vec3.fromValues(0,0,-1));
     
         //todo create a list of pianos?
         this.piano = new Piano(this.gl);
+        this.piano.xform.pos[0] = 3;
+        this.piano.xform.pos[1] = 3;
 
         //////////////////////////////
         
@@ -178,13 +180,12 @@ class Game
         let viewMat = this.camera.getView();
 
 
-        let coloredCubeModel = mat4.create();
-        mat4.translate(coloredCubeModel, coloredCubeModel, vec3.fromValues(-1, 1, -7));
-        let cubeColor = vec3.fromValues(1,0,0);
-
-        this.coloredCube.bindBuffers();
-        this.coloredCube.updateShader(coloredCubeModel, viewMat, perspectiveMat, cubeColor);
-        this.coloredCube.render();
+        // let coloredCubeModel = mat4.create();
+        // mat4.translate(coloredCubeModel, coloredCubeModel, vec3.fromValues(-1, 1, -7));
+        // let cubeColor = vec3.fromValues(1,0,0);
+        // this.coloredCube.bindBuffers();
+        // this.coloredCube.updateShader(coloredCubeModel, viewMat, perspectiveMat, cubeColor);
+        // this.coloredCube.render();
 
 
         //render piano

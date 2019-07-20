@@ -27,7 +27,7 @@ export class Piano
     constructor(gl)
     {
         this.gl = gl;
-        this.pianoTransform = new Transform();
+        this.xform = new Transform();
         this.cube = coloredCubeFactory_pivoted(gl);
         this.keyData = {
             whiteKey : {
@@ -114,6 +114,7 @@ export class Piano
 
         let whiteKeyOffset = this.keyData.whiteKey.width + this.keyData.spacing;
         let octaveSize = 7 * whiteKeyOffset;
+        this.width = this.octaves * octaveSize;
 
         let baseOctave = 3;
         for(let octave = 0; octave < this.octaves; ++octave)
@@ -159,10 +160,18 @@ export class Piano
     {
         this.cube.bindBuffers();
         
-        let modelMat = mat4.create();
+        let centerXform = mat4.create();
+        mat4.translate(centerXform, centerXform, vec3.fromValues(-this.width / 2, 0.5, 0));
+
+        let baseXform = this.xform.toMat4(mat4.create());
+
+        mat4.mul(baseXform, baseXform, centerXform);
+        // mat4.mul(baseXform, centerXform,  baseXform);
+
         for(const key of this.keys)
         {
-            this.cube.updateShader(key.xform.toMat4(modelMat), viewMat, projectionMat, key.getColor());
+            let modelMat = mat4.mul(mat4.create(), baseXform, key.xform.toMat4(mat4.create()));
+            this.cube.updateShader(modelMat, viewMat, projectionMat, key.getColor());
             this.cube.render();
         }
     }
