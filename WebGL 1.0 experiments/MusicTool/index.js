@@ -149,6 +149,8 @@ class Game
 
     handleCanvasClicked( e )
     {
+        //TODO move this code to utils so it can be used in other demos
+
         if(this.useOrthoCamera)
         {
             let canvas = this.gl.canvas;
@@ -264,6 +266,18 @@ class Game
             this.coloredCube.bindBuffers();
             this.coloredCube.updateShader(coloredCubeModel, viewMat, perspectiveMat, cubeColor);
             this.coloredCube.render();
+        }
+
+        if(this.rayEnd && this.rayStart)
+        {
+            let rayDir = vec3.sub(vec3.create(), this.rayEnd, this.rayStart);
+            vec3.normalize(rayDir, rayDir);
+            let clickedKey = this.piano.clickTest(this.rayStart, rayDir);
+            if(clickedKey)
+            {
+                this.rayEnd = null;
+                this.rayStart = null;
+            }
         }
 
         //render piano

@@ -156,17 +156,59 @@ export class Piano
         }
     }
 
-    render(viewMat, projectionMat)
+    _getBaseXform()
     {
-        this.cube.bindBuffers();
-        
         let centerXform = mat4.create();
         mat4.translate(centerXform, centerXform, vec3.fromValues(-this.width / 2, 0.5, 0));
 
         let baseXform = this.xform.toMat4(mat4.create());
-
         mat4.mul(baseXform, baseXform, centerXform);
-        // mat4.mul(baseXform, centerXform,  baseXform);
+
+        return baseXform;
+    }
+    
+    /* parameters are vec3s in world space */
+    clickTest(rayStart, rayDir)
+    {  
+        let t = Infinity;
+        let hitKey = null;
+
+        let baseXform = this._getBaseXform();
+        for(const key of this.keys)
+        {
+            let keyXform = mat4.mul(mat4.create(), baseXform, key.xform.toMat4(mat4.create()));            
+            let keyInverseXform = mat4.invert(mat4.create(), keyXform);
+            
+            
+            let transformedRayStart = vec4.fromValues(rayStart[0], rayStart[1], rayStart[2], 1.0); //this is a point so 4th coordinate is a 1
+            vec4.transformMat4(transformedRayStart, transformedRayStart, keyInverseXform);
+
+            let transformedRayDir = vec4.fromValues(rayDir[0], rayDir[1], rayDir[2], 0.0);   //this is a dir, 4th coordinate is 0
+            vec4.transformMat4(transformedRayDir, transformedRayDir, keyInverseXform);
+
+            /*
+            let collisionResult = fastBoxCollision(0, 1, 0, 1, 0, 1, transformedRayStart, transformedRayDir);
+            if(collisionResult)
+            {
+                if(t > collisionResult.t)
+                {
+                    t = collisionResult.t;
+                    hitKey = key;
+                }
+            }
+            */
+
+        }
+
+        //TODO have key object able to play itself?
+        return hitKey;
+    }
+
+    render(viewMat, projectionMat)
+    {
+        this.cube.bindBuffers();
+        
+        let baseXform = this._getBaseXform();
 
         for(const key of this.keys)
         {
