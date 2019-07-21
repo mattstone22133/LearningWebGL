@@ -42,13 +42,21 @@ class Game
         
         ///////////////////////////////
         //custom game code
-        // this.coloredCube = coloredCubeFactory(this.gl);
+        this.coloredCube = coloredCubeFactory(this.gl);
         this.camera = new Camera(vec3.fromValues(0,0,1), vec3.fromValues(0,0,-1));
     
         //todo create a list of pianos?
         this.piano = new Piano(this.gl);
         this.piano.xform.pos[0] = 3;
         this.piano.xform.pos[1] = 3;
+
+
+        this.lineRenderer = new EmeraldUtils.LineRenderer(this.gl);
+
+        this.useOrthoCamera = true;
+        this.orthoCameraHeight = 10;
+
+        this.bRenderLineTrace = true;
 
         //////////////////////////////
         
@@ -89,6 +97,7 @@ class Game
     _bindCallbacks()
     {
         document.addEventListener('keydown', this.handleKeyDown.bind(this), /*useCapture*/ false);
+        // document.addEventListener('mousedown', this.handleMouseDown.bind(this), false);
         if(EmeraldUtils.supportPointerLock)
         {
             this.glCanvas.addEventListener("click", this.handleCanvasClicked.bind(this), false);
@@ -124,26 +133,82 @@ class Game
             deltaMovement[1] = deltaMovement[1] + this.camera.right[1];
             deltaMovement[2] = deltaMovement[2] + this.camera.right[2];
         }
+        if(event.keyCode == key.t)
+        {
+            this.useOrthoCamera = !this.useOrthoCamera;
+        }
+
         vec3.scale(deltaMovement, deltaMovement, this.camera.speed * this.deltaSec);
         vec3.add(this.camera.position, this.camera.position, deltaMovement);
     }
 
-    handleCanvasClicked()
+    // handleMouseDown(event)
+    // {
+    //     //use canvas click to find location
+    // }
+
+    handleCanvasClicked( e )
     {
-        // this.glCanvas.requestPointerLock();
+        if(this.useOrthoCamera)
+        {
+            let canvas = this.gl.canvas;
+            let canvasHalfWidth = canvas.clientWidth / 2.0;
+            let canvasHalfHeight = canvas.clientHeight / 2.0;
+
+            //x-y relative to center of canvas; assuming 0 padding
+            let x = (e.clientX - canvas.offsetLeft) - (canvasHalfWidth);
+            let y = -((e.clientY - canvas.offsetTop) - (canvasHalfHeight));
+            console.log(x, y);
+
+            let fractionWidth = x / canvasHalfWidth;
+            let fractionHeight = y / canvasHalfHeight;
+            
+            let aspect = canvas.clientWidth / canvas.clientHeight;
+            let orthoHalfHeight = this.orthoCameraHeight / 2.0
+            let orthoHalfWidth = (aspect * this.orthoCameraHeight) / 2.0; 
+
+            let numCameraUpUnits = fractionHeight * orthoHalfHeight;
+            let numCameraRightUnits = fractionWidth * orthoHalfWidth;
+
+            let rayStart = vec3.clone(this.camera.position);
+
+            { //calculate start point
+                let scaledCamUp = vec3.clone(this.camera.up);
+                let scaledCamRight = vec3.clone(this.camera.right);
+    
+                vec3.scale(scaledCamUp, scaledCamUp, numCameraUpUnits);
+                vec3.scale(scaledCamRight, scaledCamRight, numCameraRightUnits);
+    
+                vec3.add(rayStart, rayStart, scaledCamUp);
+                vec3.add(rayStart, rayStart, scaledCamRight);
+            }
+
+            let rayEnd = vec3.clone(rayStart);
+            vec3.add(rayEnd, rayEnd, this.camera.forward);
+            
+            this.rayStart = rayStart;
+            this.rayEnd = rayEnd;
+
+        }
+        else
+        {
+            //not using ortho... do pointerlock for perspective camera
+            this.glCanvas.requestPointerLock();
+        }
     }
 
     handlePointerLockChange()
     {
-        // this.camera.enableMouseFollow = EmeraldUtils.isElementPointerLocked(this.glCanvas);
+        if(!this.useOrthoCamera)
+        {
+            this.camera.enableMouseFollow = EmeraldUtils.isElementPointerLocked(this.glCanvas);
+        }
     }
 
     run()
     {
         requestAnimationFrame(this.boundGameLoop);
     }
-
-
 
     gameLoop(nowMS)
     {
@@ -166,7 +231,10 @@ class Game
         /////////////////////////////////////
         // TICK
         /////////////////////////////////////
-        // this.camera.tick(deltaMs);
+        if(!this.useOrthoCamera)
+        {
+            this.camera.tick(this.deltaSec);
+        }
 
         /////////////////////////////////////
         // RENDER
@@ -174,19 +242,29 @@ class Game
 
         //some of these may be appropriate for camera fields
         let aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-        let orthoHeightUnits = 10;
-        let perspectiveMat = this.camera.getOrtho(aspect * orthoHeightUnits, orthoHeightUnits);
-        // let perspectiveMat = this.camera.getPerspective(aspect);
+
+        let perspectiveMat = null;
+        if(this.useOrthoCamera){ perspectiveMat = this.camera.getOrtho(aspect * this.orthoCameraHeight, this.orthoCameraHeight);}
+        else                   { perspectiveMat = this.camera.getPerspective(aspect); }
+
         let viewMat = this.camera.getView();
 
 
-        // let coloredCubeModel = mat4.create();
-        // mat4.translate(coloredCubeModel, coloredCubeModel, vec3.fromValues(-1, 1, -7));
-        // let cubeColor = vec3.fromValues(1,0,0);
-        // this.coloredCube.bindBuffers();
-        // this.coloredCube.updateShader(coloredCubeModel, viewMat, perspectiveMat, cubeColor);
-        // this.coloredCube.render();
+        if(this.bRenderLineTrace && this.rayStart && this.rayEnd)
+        {
+            this.lineRenderer.renderLine(this.rayStart, this.rayEnd, vec3.fromValues(1,0,0), viewMat, perspectiveMat);
+        }
 
+        if(this.bRenderLineTrace && this.rayEnd)
+        {
+            let coloredCubeModel = mat4.create();
+            mat4.translate(coloredCubeModel, coloredCubeModel, this.rayEnd);
+            mat4.scale(coloredCubeModel, coloredCubeModel, vec3.fromValues(0.1, 0.1, 0.1));
+            let cubeColor = vec3.fromValues(1,0,0);
+            this.coloredCube.bindBuffers();
+            this.coloredCube.updateShader(coloredCubeModel, viewMat, perspectiveMat, cubeColor);
+            this.coloredCube.render();
+        }
 
         //render piano
         this.piano.render(viewMat, perspectiveMat);
