@@ -80,27 +80,27 @@ function compareVersion(version, range) {
 }
 
 //range parametesr are optional
-function isOpera(range) {
+export function isOpera(range) {
     var match = userAgent.match(/(?:^opera.+?version|opr)\/(\d+)/);
     return match !== null && compareVersion(match[1], range);
 }
-function isChrome(range) {
+export function isChrome(range) {
     var match = /google inc/.test(vendor) ? userAgent.match(/(?:chrome|crios)\/(\d+)/) : null;
     return match !== null && !isOpera() && compareVersion(match[1], range);
 }
-function isSafari(range) {
+export function isSafari(range) {
     var match = userAgent.match(/version\/(\d+).+?safari/);
     return match !== null && compareVersion(match[1], range);
 }
-function isFirefox(range) {
+export function isFirefox(range) {
     var match = userAgent.match(/(?:firefox|fxios)\/(\d+)/);
     return match !== null && compareVersion(match[1], range);
 }
-function isEdge(range) {
+export function isEdge(range) {
     var match = userAgent.match(/edge\/(\d+)/);
     return match !== null && compareVersion(match[1], range);
 }
-function isIE(range) {
+export function isIE(range) {
     var match = userAgent.match(/(?:msie |trident.+?; rv:)(\d+)/);
     return match !== null && compareVersion(match[1], range);
 }

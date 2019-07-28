@@ -563,6 +563,99 @@ export class Transform
     }
 }
 
+export function clamp(value, min, max)
+{
+    //not sure which of these is fastest without testing
+    // return Math.min(Math.max(value, min), max);
+    return (value > max) ? max : (value < min) ? min : value;
+}
+
+export function rayTraceFastAABB(xMin, xMax, yMin, yMax, zMin, zMax, rayStart, rayDir)
+{
+    
+    //FAST RAY BOX INTERSECTION
+    //intersection = s + t*d;		where s is the start and d is the direction
+    //for an axis aligned box, we can look at each axis individually
+    //
+    //intersection_x = s_x + t_x * d_x
+    //intersection_y = s_y + t_y * d_y
+    //intersection_z = s_z + t_z * d_z
+    //
+    //for each of those, we can solve for t
+    //eg: (intersection_x - s_x) / d_z = t_z
+    //intersection_x can be easily found since we have an axis aligned box, and there are 2 yz-planes that represent x values a ray will have to pass through
+    //
+    //intuitively, a ray that DOES intersect will pass through 3 planes before entering the cube; and pass through 3 planes to exit the cube.
+    //the last plane it intersects when entering the cube, is the t value for the box intersection.
+    //		eg ray goes through X plane, Y plane, and then Z Plane, the intersection point is the t value associated with the Z plane
+    //the first plane it intersects when it leaves the box is also its exit intersection t value
+    //		eg ray goes leaves Y plane, X plane, Z plane, then the intersection of the Y plane is the intersection point
+    //if the object doesn't collide, then it will exit a plane before all 3 entrance places are intersected
+    //		eg ray Enters X Plane, Enters Y plane, Exits X PLane, Enters Z plane, Exits Y plane, Exits Z plane; 
+    //		there is no collision because it exited the x plane before it penetrated the z plane
+    //it seems that, if it is within the cube, the entrance planes will all have negative t values
+
+    //f = floor, c = ceil
+    let fX = xMin;
+    let cX = xMax;
+    let fY = yMin;
+    let cY = yMax;
+    let fZ = zMin;
+    let cZ = zMax;
+
+    if (fX == cX || fY == cY || fZ == cZ) { return null;};
+
+    //use algbra to calculate T when these planes are hit; similar to above example -- looking at single components
+    // pnt = s + t * d;			t = (pnt - s)/d
+    //these calculations may produce infinity
+    let tMaxX = (fX - rayStart[0]) / rayDir[0];
+    let tMinX = (cX - rayStart[0]) / rayDir[0];
+    let tMaxY = (fY - rayStart[1]) / rayDir[1];
+    let tMinY = (cY - rayStart[1]) / rayDir[1];
+    let tMaxZ = (fZ - rayStart[2]) / rayDir[2];
+    let tMinZ = (cZ - rayStart[2]) / rayDir[2];
+
+    let x_enter_t = Math.min(tMinX, tMaxX);
+    let x_exit_t  = Math.max(tMinX, tMaxX);
+    let y_enter_t = Math.min(tMinY, tMaxY);
+    let y_exit_t  = Math.max(tMinY, tMaxY);
+    let z_enter_t = Math.min(tMinZ, tMaxZ);
+    let z_exit_t  = Math.max(tMinZ, tMaxZ);
+
+    //handle cases where ray never crosses; TODO may need to account for when 1 boundary is infinity but not the other
+    if(Math.abs(tMaxX) == Infinity && Math.abs(tMinX) == Infinity && (rayStart[0] > xMax || rayStart[0] < xMin)){ return null; }
+    if(Math.abs(tMaxY) == Infinity && Math.abs(tMinY) == Infinity && (rayStart[1] > yMax || rayStart[1] < yMin)){ return null; }
+    if(Math.abs(tMaxZ) == Infinity && Math.abs(tMinZ) == Infinity && (rayStart[2] > zMax || rayStart[2] < zMin)){ return null; }
+
+    let enterTs = [x_enter_t, y_enter_t, z_enter_t ];
+    enterTs.sort();
+
+    let exitTs = [x_exit_t, y_exit_t, z_exit_t];
+    exitTs.sort();
+
+    //handle cases where infinity is within enterT
+    let numElements = 3; //theoretically we can do fast AABB in dimensions higher than 3!
+    for (let idx = numElements - 1; idx >= 0; --idx)
+    {
+        if (enterTs[idx] != Infinity)
+        {
+            //move a real value to the place where infinity was sorted
+            enterTs[2] = enterTs[idx];
+            break;
+        }
+    }
+
+    let intersects = enterTs[2] <= exitTs[0];
+    if (intersects)
+    {
+        //collision is that of the enter values
+        let collisionT = enterTs[2];
+        return collisionT;
+    }
+
+    return null;
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Camera
 /////////////////////////////////////////////////////////////////////////////////
@@ -768,4 +861,74 @@ export class Camera
             vec3.add(this.position, this.position, dir);
         }
     }
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Audio
+/////////////////////////////////////////////////////////////////////////////////
+
+let documentSoundMap = {}
+
+export class Sound
+{
+    // static factory(soundURL)
+    // {
+    //     //see if any sounds have already been used and cached;
+    //     let documentSounds = documentSoundMap[document]
+    //     if(documentSounds)
+    //     {
+    //         let previousSoundLoad = documentSounds[soundURL];
+    //         if(previousSoundLoad)
+    //         {
+    //             this.audioElement = previousSoundLoad;
+    //         }
+    //     } 
+    //     else
+    //     {
+    //         documentSoundMap[document] = {};
+    //     }        
+
+    //      create one if not loaded
+
+    //     //cache sound
+    //     // documentSoundMap[document][soundURL] = this.audioElement;
+    // }
+
+    constructor(soundURL)
+    {
+        //use HTML5 audio element to hold the sound; each sound object will own a 
+        if(!this.audioElement)
+        {
+            this.audioElement = document.createElement("audio");
+            this.bLoaded = false;
+            this.audioElement.addEventListener('loadeddata', this.loadedAudio.bind(this));
+            this.audioElement.src = soundURL;
+            this.audioElement.setAttribute("preload", "auto"); //indicates audio should be loaded when browser loads.
+            this.audioElement.setAttribute("controls", "none"); //remove the play/stop/etc audio controls from owned element
+            this.audioElement.style.display = "none"; //don't show this element on the page.
+            this.url = soundURL;
+            document.body.appendChild(this.audioElement);
+        }
+    }
+
+    loadedAudio()
+    {
+        this.bLoaded = true;
+        console.log("Loaded sound file ", this.url);
+    }
+
+    play() 
+    {
+        if(this.bLoaded)
+        {
+            this.audioElement.currentTime = 0;
+            this.audioElement.play();
+        }
+    }
+
+    stop()
+    {
+        this.audioElement.pause();
+    }
+
 }

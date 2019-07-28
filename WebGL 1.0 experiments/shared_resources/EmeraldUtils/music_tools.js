@@ -10,21 +10,74 @@ import { coloredCubeFactory, coloredCubeFactory_pivoted} from "./emerald_easy_sh
 
 class PianoKey 
 {
-    constructor(keyXform, isWhiteKey)
+    constructor(keyXform, isWhiteKey, soundPrefixLocation, keyString, octaveIdx)
     {
         this.xform = keyXform;
         this.isWhiteKey = isWhiteKey;
         this.baseColor = isWhiteKey ? vec3.fromValues(1,1,1) : vec3.fromValues(0,0,0);
+        this.colorDecaySpeedSec = 4.0; //over range [0, 1]; 1 being max click color
+
+        this.blendColorBuffer = vec3.clone(this.baseColor);
+        this.pressColorAlpha = 0;
+        this.pressColor = vec3.fromValues(1, 0.56, 0.058);
+
+        this.file_path_prefix = "";
+        this.keyString = keyString;
+        this.octaveString = octaveIdx.toString();
+        this.generateSound(soundPrefixLocation);
     }
 
-    getColor(){
-        return this.baseColor;
+    generateSound(soundPrefixURL)
+    {
+        // this.sound = new EmeraldUtils.Sound("../Sounds/PianoKeySounds/C3.wav");
+        this.sound = new EmeraldUtils.Sound( soundPrefixURL + this.keyString + this.octaveString + ".wav");
+        // shared_resources\Sounds\PianoKeySounds
+    }
+
+    getColor()
+    {
+        return this.blendColorBuffer;
+    }
+
+    press()
+    {
+        this.pressColorAlpha = 1.0;
+        this.sound.play();
+    }
+
+    tick(dt_sec)
+    {
+        if(this.pressColorAlpha > 0.0)
+        {
+            this.pressColorAlpha -= dt_sec * this.colorDecaySpeedSec;
+            this.pressColorAlpha = EmeraldUtils.clamp(this.pressColorAlpha, 0, 1);
+
+            let baseAlpha = 1 - this.pressColorAlpha;
+            this.blendColorBuffer[0] = this.baseColor[0] * baseAlpha + this.pressColor[0] * this.pressColorAlpha; 
+            this.blendColorBuffer[1] = this.baseColor[1] * baseAlpha + this.pressColor[1] * this.pressColorAlpha; 
+            this.blendColorBuffer[2] = this.baseColor[2] * baseAlpha + this.pressColor[2] * this.pressColorAlpha; 
+        }
     }
 }
 
+let keyNames = [
+    "C",
+    "CSHARP",
+    "D",
+    "DSHARP",
+    "E",
+    "F",
+    "FSHARP",
+    "G",
+    "GSHARP",
+    "A",
+    "ASHARP",
+    "B",
+];
+
 export class Piano
 {
-    constructor(gl)
+    constructor(gl, soundPrefixLocation = "", numOctaves=2)
     {
         this.gl = gl;
         this.xform = new Transform();
@@ -40,8 +93,24 @@ export class Piano
             },
             spacing : 0.1
         }
-        this.octaves = 1;
+        this.octaves = numOctaves;
+
+        this.soundPrefixLocation = soundPrefixLocation;
         this._generateKeys();
+
+        //#suggestion not sure, but perhaps have this be self contained and request its own animation frames. may be bad for perf
+        this.bound_tickLoop = this._tickLoop.bind(this);
+        this.prevFrameTimestampSec = 0;
+        requestAnimationFrame(this.bound_tickLoop);
+    }
+
+    _tickLoop(nowMS)
+    {
+        let nowTimeSec = (nowMS * 0.001);
+        this.deltaSec = nowTimeSec - this.prevFrameTimestampSec;
+        this.prevFrameTimestampSec = nowTimeSec;
+        this.tick(this.deltaSec);
+        requestAnimationFrame(this.bound_tickLoop);
     }
 
     _generateKeys()
@@ -117,6 +186,7 @@ export class Piano
         this.width = this.octaves * octaveSize;
 
         let baseOctave = 3;
+        let keyIdx = 0;
         for(let octave = 0; octave < this.octaves; ++octave)
         {
             let startPos = vec3.fromValues(octave*octaveSize, 0, 0);
@@ -125,6 +195,8 @@ export class Piano
             for (const keyName in keyLocations) 
             {
                 let key = keyLocations[keyName];
+                let keyString = keyNames[keyIdx];
+                keyIdx = (keyIdx + 1) % keyNames.length
 
                 keyOffset[0] = whiteKeyOffset * key.whiteKeyOffsets;
                 keyOffset[1] = 0;
@@ -151,7 +223,7 @@ export class Piano
                 }
                 
                 //TODO pass key's octave to ctor and have key generate sound file name
-                this.keys.push(new PianoKey(keyXform, key.isWhiteKey));
+                this.keys.push(new PianoKey(keyXform, key.isWhiteKey, this.soundPrefixLocation, keyString, octave + baseOctave));
             }
         }
     }
@@ -179,28 +251,29 @@ export class Piano
             let keyXform = mat4.mul(mat4.create(), baseXform, key.xform.toMat4(mat4.create()));            
             let keyInverseXform = mat4.invert(mat4.create(), keyXform);
             
-            
             let transformedRayStart = vec4.fromValues(rayStart[0], rayStart[1], rayStart[2], 1.0); //this is a point so 4th coordinate is a 1
             vec4.transformMat4(transformedRayStart, transformedRayStart, keyInverseXform);
 
             let transformedRayDir = vec4.fromValues(rayDir[0], rayDir[1], rayDir[2], 0.0);   //this is a dir, 4th coordinate is 0
             vec4.transformMat4(transformedRayDir, transformedRayDir, keyInverseXform);
 
-            /*
-            let collisionResult = fastBoxCollision(0, 1, 0, 1, 0, 1, transformedRayStart, transformedRayDir);
-            if(collisionResult)
+            //match the vertices on keys before transformations; x[0, 1] y[0, -1] z[0, -1]
+            let hit_t = EmeraldUtils.rayTraceFastAABB(0, 1, -1, 0, -1, 0, transformedRayStart, transformedRayDir);
+            if(hit_t)
             {
-                if(t > collisionResult.t)
+                if(t > hit_t)
                 {
-                    t = collisionResult.t;
+                    t = hit_t;
                     hitKey = key;
                 }
             }
-            */
-
         }
 
         //TODO have key object able to play itself?
+        if(hitKey)
+        {
+            hitKey.press();
+        }
         return hitKey;
     }
 
@@ -215,6 +288,14 @@ export class Piano
             let modelMat = mat4.mul(mat4.create(), baseXform, key.xform.toMat4(mat4.create()));
             this.cube.updateShader(modelMat, viewMat, projectionMat, key.getColor());
             this.cube.render();
+        }
+    }
+
+    tick(dt_sec)
+    {
+        for(const key of this.keys)
+        {
+            key.tick(dt_sec);
         }
     }
 }

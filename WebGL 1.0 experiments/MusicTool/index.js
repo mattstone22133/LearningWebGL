@@ -7,6 +7,7 @@ import {RenderBox3D, GlyphRenderer} from "../shared_resources/EmeraldUtils/Bitma
 import * as BMF from "../shared_resources/EmeraldUtils/BitmapFontRendering.js"
 import { Montserrat_BMF } from "../shared_resources/EmeraldUtils/Montserrat_BitmapFontConfig.js";
 import { Piano } from "../shared_resources/EmeraldUtils/music_tools.js";
+import {isSafari} from "../shared_resources/EmeraldUtils/browser_key_codes.js";
 
 
 
@@ -46,9 +47,11 @@ class Game
         this.camera = new Camera(vec3.fromValues(0,0,1), vec3.fromValues(0,0,-1));
     
         //todo create a list of pianos?
-        this.piano = new Piano(this.gl);
-        this.piano.xform.pos[0] = 3;
-        this.piano.xform.pos[1] = 3;
+        this.piano = new Piano(this.gl, "../shared_resources/Sounds/PianoKeySounds/");
+        // this.piano.xform.pos[0] = 3;
+        // this.piano.xform.pos[1] = 3;
+        this.piano.xform.scale[0] = 0.75;
+        this.piano.xform.scale[1] = 0.75;
 
 
         this.lineRenderer = new EmeraldUtils.LineRenderer(this.gl);
@@ -56,7 +59,8 @@ class Game
         this.useOrthoCamera = true;
         this.orthoCameraHeight = 10;
 
-        this.bRenderLineTrace = true;
+        this.bRenderLineTrace = false;
+        this.bStopTicks;
 
         //////////////////////////////
         
@@ -97,6 +101,18 @@ class Game
     _bindCallbacks()
     {
         document.addEventListener('keydown', this.handleKeyDown.bind(this), /*useCapture*/ false);
+        document.addEventListener('mousedown', this.handleMouseDown.bind(this), false);
+        // document.addEventListener('touchend', this.handleTouchEnd.bind(this), false);
+        // document.addEventListener('touchstart', this.handleTouchStart.bind(this), false);
+        // document.addEventListener('touchmove', this.handleTouchMove.bind(this), false);
+        // document.addEventListener('touchcancel', this.handleTouchCancel.bind(this), false);
+
+        this.glCanvas.addEventListener('touchend', this.handleTouchEnd.bind(this), false);
+        this.glCanvas.addEventListener('touchstart', this.handleTouchStart.bind(this), false);
+        this.glCanvas.addEventListener('touchmove', this.handleTouchMove.bind(this), false);
+        this.glCanvas.addEventListener('touchcancel', this.handleTouchCancel.bind(this), false);
+
+        
         // document.addEventListener('mousedown', this.handleMouseDown.bind(this), false);
         if(EmeraldUtils.supportPointerLock)
         {
@@ -142,54 +158,120 @@ class Game
         vec3.add(this.camera.position, this.camera.position, deltaMovement);
     }
 
-    // handleMouseDown(event)
-    // {
-    //     //use canvas click to find location
-    // }
+    handleMouseDown(e)
+    {
+        // canvas click will only happen when click is released
+        let elementClicked = document.elementFromPoint(e.clientX, e.clientY);
+        if(elementClicked)
+        {
+            if(elementClicked == this.glCanvas)
+            {
+                // this.handleCanvasClicked(e);
+                if(this.useOrthoCamera)
+                {
+                    let canvas = this.gl.canvas;
+                    let canvasHalfWidth = canvas.clientWidth / 2.0;
+                    let canvasHalfHeight = canvas.clientHeight / 2.0;
+        
+                    //x-y relative to center of canvas; assuming 0 padding
+                    let x = (e.clientX - canvas.offsetLeft) - (canvasHalfWidth);
+                    let y = -((e.clientY - canvas.offsetTop) - (canvasHalfHeight));
+                    // console.log(x, y);
+        
+                    let fractionWidth = x / canvasHalfWidth;
+                    let fractionHeight = y / canvasHalfHeight;
+                    
+                    let aspect = canvas.clientWidth / canvas.clientHeight;
+                    let orthoHalfHeight = this.orthoCameraHeight / 2.0
+                    let orthoHalfWidth = (aspect * this.orthoCameraHeight) / 2.0; 
+        
+                    let numCameraUpUnits = fractionHeight * orthoHalfHeight;
+                    let numCameraRightUnits = fractionWidth * orthoHalfWidth;
+        
+                    let rayStart = vec3.clone(this.camera.position);
+        
+                    { //calculate start point
+                        let scaledCamUp = vec3.clone(this.camera.up);
+                        let scaledCamRight = vec3.clone(this.camera.right);
+            
+                        vec3.scale(scaledCamUp, scaledCamUp, numCameraUpUnits);
+                        vec3.scale(scaledCamRight, scaledCamRight, numCameraRightUnits);
+            
+                        vec3.add(rayStart, rayStart, scaledCamUp);
+                        vec3.add(rayStart, rayStart, scaledCamRight);
+                    }
+        
+                    let rayEnd = vec3.clone(rayStart);
+                    vec3.add(rayEnd, rayEnd, this.camera.forward);
+                    
+                    this.rayStart = rayStart;
+                    this.rayEnd = rayEnd;
+                }
+            }
+        }
+    }
+
+    handleTouchEnd(event)
+    {
+        this.piano.keys[7].press();
+    }
+    handleTouchStart(event)
+    {
+        this.piano.keys[0].press();
+    }
+    handleTouchMove(event)
+    {
+        this.piano.keys[3].press();
+    }
+    handleTouchCancel(event)
+    {
+        this.piano.keys[11].press();
+    }
+
 
     handleCanvasClicked( e )
     {
-        //TODO move this code to utils so it can be used in other demos
-
+        // #TODO move this code to utils so it can be used in other demos
         if(this.useOrthoCamera)
         {
-            let canvas = this.gl.canvas;
-            let canvasHalfWidth = canvas.clientWidth / 2.0;
-            let canvasHalfHeight = canvas.clientHeight / 2.0;
+            //moved to on clickdown so sound is immediate
+            // let canvas = this.gl.canvas;
+            // let canvasHalfWidth = canvas.clientWidth / 2.0;
+            // let canvasHalfHeight = canvas.clientHeight / 2.0;
 
-            //x-y relative to center of canvas; assuming 0 padding
-            let x = (e.clientX - canvas.offsetLeft) - (canvasHalfWidth);
-            let y = -((e.clientY - canvas.offsetTop) - (canvasHalfHeight));
-            console.log(x, y);
+            // //x-y relative to center of canvas; assuming 0 padding
+            // let x = (e.clientX - canvas.offsetLeft) - (canvasHalfWidth);
+            // let y = -((e.clientY - canvas.offsetTop) - (canvasHalfHeight));
+            // // console.log(x, y);
 
-            let fractionWidth = x / canvasHalfWidth;
-            let fractionHeight = y / canvasHalfHeight;
+            // let fractionWidth = x / canvasHalfWidth;
+            // let fractionHeight = y / canvasHalfHeight;
             
-            let aspect = canvas.clientWidth / canvas.clientHeight;
-            let orthoHalfHeight = this.orthoCameraHeight / 2.0
-            let orthoHalfWidth = (aspect * this.orthoCameraHeight) / 2.0; 
+            // let aspect = canvas.clientWidth / canvas.clientHeight;
+            // let orthoHalfHeight = this.orthoCameraHeight / 2.0
+            // let orthoHalfWidth = (aspect * this.orthoCameraHeight) / 2.0; 
 
-            let numCameraUpUnits = fractionHeight * orthoHalfHeight;
-            let numCameraRightUnits = fractionWidth * orthoHalfWidth;
+            // let numCameraUpUnits = fractionHeight * orthoHalfHeight;
+            // let numCameraRightUnits = fractionWidth * orthoHalfWidth;
 
-            let rayStart = vec3.clone(this.camera.position);
+            // let rayStart = vec3.clone(this.camera.position);
 
-            { //calculate start point
-                let scaledCamUp = vec3.clone(this.camera.up);
-                let scaledCamRight = vec3.clone(this.camera.right);
+            // { //calculate start point
+            //     let scaledCamUp = vec3.clone(this.camera.up);
+            //     let scaledCamRight = vec3.clone(this.camera.right);
     
-                vec3.scale(scaledCamUp, scaledCamUp, numCameraUpUnits);
-                vec3.scale(scaledCamRight, scaledCamRight, numCameraRightUnits);
+            //     vec3.scale(scaledCamUp, scaledCamUp, numCameraUpUnits);
+            //     vec3.scale(scaledCamRight, scaledCamRight, numCameraRightUnits);
     
-                vec3.add(rayStart, rayStart, scaledCamUp);
-                vec3.add(rayStart, rayStart, scaledCamRight);
-            }
+            //     vec3.add(rayStart, rayStart, scaledCamUp);
+            //     vec3.add(rayStart, rayStart, scaledCamRight);
+            // }
 
-            let rayEnd = vec3.clone(rayStart);
-            vec3.add(rayEnd, rayEnd, this.camera.forward);
+            // let rayEnd = vec3.clone(rayStart);
+            // vec3.add(rayEnd, rayEnd, this.camera.forward);
             
-            this.rayStart = rayStart;
-            this.rayEnd = rayEnd;
+            // this.rayStart = rayStart;
+            // this.rayEnd = rayEnd;
 
         }
         else
@@ -282,15 +364,59 @@ class Game
 
         //render piano
         this.piano.render(viewMat, perspectiveMat);
+        
+        if(!this.bStopTicks)
+        {
+            requestAnimationFrame(this.boundGameLoop);
+        }
+    }
+}
 
-        requestAnimationFrame(this.boundGameLoop);
+function handleIphoneWorkaround()
+{
+    // !!!!!!!! this is apparently not enough to load audio. :\ !!!!!!!!!!!!!!
+    //see
+    //  https://stackoverflow.com/questions/31776548/why-cant-javascript-play-audio-files-on-iphone-safari
+    //  https://www.ibm.com/developerworks/library/wa-ioshtml5/wa-ioshtml5-pdf.pdf
+    //  https://community.esri.com/thread/159378
+
+    console.log("iphone workaround");
+    // game.bStopTicks = true;
+    // game = null; 
+    
+    game = new Game();
+    game.run();
+
+    let iphoneBtn = document.getElementById("enableIphoneAudioButton");
+    if(iphoneBtn)
+    {
+        iphoneBtn.style.display="none";
     }
 }
 
 function main()
 {
-    game = new Game();
-    game.run();
+    let iphoneBtn = document.getElementById("enableIphoneAudioButton");
+
+    let suppressStart = false;
+    if(iphoneBtn)
+    {
+        if(!isSafari())
+        {
+            iphoneBtn.style.display="none";
+        } 
+        else 
+        {
+            iphoneBtn.onclick = handleIphoneWorkaround;
+            suppressStart = true;
+        }
+    }
+
+    if(!suppressStart)
+    {
+        game = new Game();
+        game.run();
+    }
 }
 
 
